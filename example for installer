@@ -1,0 +1,305 @@
+// SID Install X Server
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const { exec } = require('child_process');
+
+const app = express();
+const PORT = 3001;
+
+// Enable CORS
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    next();
+});
+
+app.use(express.json());
+app.use(express.static('.'));
+
+// Game packages
+const packages = {
+    'roblox': {
+        name: 'Roblox Player',
+        sourcePath: '/Applications/z/Roblox copy.app',
+        installPath: '/Applications/Roblox.app',
+        size: '2.3 GB',
+        icon: '🎮'
+    },
+    'roblox-studio': {
+        name: 'Roblox Studio',
+        sourcePath: '/Applications/z/RobloxStudio copy.app',
+        installPath: '/Applications/RobloxStudio.app',
+        size: '1.8 GB',
+        icon: '🛠️'
+    },
+    'copilot': {
+        name: 'GitHub Copilot',
+        sourcePath: '/Applications/z/Copilot copy.app',
+        installPath: '/Applications/Copilot.app',
+        size: '856 MB',
+        icon: '🤖'
+    },
+    'geometry': {
+        name: 'Geometry Jump',
+        sourcePath: '/Applications/z/Geometry copy.app/Wrapper/GeometryJump.app',
+        installPath: '/Applications/GeometryJump.app',
+        size: '234 MB',
+        icon: '📐'
+    },
+    'polytopia': {
+        name: 'Polytopia',
+        sourcePath: '/Applications/z/Polytopia copy.app/Wrapper/Polytopia.app',
+        installPath: '/Applications/Polytopia.app',
+        size: '412 MB',
+        icon: '🗺️'
+    }
+};
+
+// Serve the website
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+// API Routes
+
+// List all packages
+app.get('/api/apps', (req, res) => {
+    const available = [];
+    const installed = [];
+    
+    Object.keys(packages).forEach(packageId => {
+        const pkg = packages[packageId];
+        const sourceExists = fs.existsSync(pkg.sourcePath);
+        const installedExists = fs.existsSync(pkg.installPath);
+        
+        if (sourceExists) {
+            available.push({
+                id: packageId,
+                name: pkg.name,
+                sourcePath: pkg.sourcePath,
+                installPath: pkg.installPath,
+                size: pkg.size,
+                icon: pkg.icon,
+                exists: sourceExists
+            });
+        }
+        
+        if (installedExists) {
+            installed.push({
+                id: packageId,
+                name: pkg.name,
+                path: pkg.installPath,
+                size: pkg.size,
+                icon: pkg.icon
+            });
+        }
+    });
+    
+    res.json({
+        available: available,
+        installed: installed,
+        total: available.length
+    });
+});
+
+// Install package
+app.post('/api/install/:packageId', async (req, res) => {
+    try {
+        const packageId = req.params.packageId;
+        const pkg = packages[packageId];
+        
+        if (!pkg) {
+            return res.status(404).json({ error: 'Package not found' });
+        }
+        
+        console.log(`[SID_INSTALL_X] Deploying: ${pkg.name}`);
+        console.log(`[SID_INSTALL_X] Source: ${pkg.sourcePath}`);
+        console.log(`[SID_INSTALL_X] Target: ${pkg.installPath}`);
+        
+        // Check if source exists
+        if (!fs.existsSync(pkg.sourcePath)) {
+            return res.status(404).json({ error: 'Source package not found' });
+        }
+        
+        // Remove existing installation
+        if (fs.existsSync(pkg.installPath)) {
+            console.log(`[SID_INSTALL_X] Removing existing installation...`);
+            await removeDirectory(pkg.installPath);
+        }
+        
+        // Deploy the package
+        console.log(`[SID_INSTALL_X] Deploying package files...`);
+        await copyDirectory(pkg.sourcePath, pkg.installPath);
+        
+        // Set executable permissions
+        await setExecutablePermissions(pkg.installPath);
+        
+        // Set permissions
+        await setPermissions(pkg.installPath);
+        
+        // Clean user data
+        await cleanUserData(pkg.installPath);
+        
+        console.log(`[SID_INSTALL_X] Deployment completed!`);
+        
+        res.json({
+            success: true,
+            package: pkg.name,
+            path: pkg.installPath,
+            size: pkg.size
+        });
+        
+    } catch (error) {
+        console.error(`[SID_INSTALL_X] Deployment failed:`, error);
+        res.status(500).json({ 
+            error: error.message,
+            details: 'Package deployment failed'
+        });
+    }
+});
+
+// Health check
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'operational',
+        system: 'SID_INSTALL_X',
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        platform: process.platform,
+        nodeVersion: process.version
+    });
+});
+
+// Helper functions
+async function removeDirectory(dirPath) {
+    return new Promise((resolve, reject) => {
+        exec('rm -rf "' + dirPath + '"', (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+async function copyDirectory(source, destination) {
+    return new Promise((resolve, reject) => {
+        exec('cp -R "' + source + '" "' + destination + '"', (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+async function setExecutablePermissions(appPath) {
+    return new Promise((resolve, reject) => {
+        // Set executable permissions on the main executable
+        const executablePath = path.join(appPath, 'Contents', 'MacOS');
+        if (fs.existsSync(executablePath)) {
+            exec('chmod +x "' + executablePath + '/*"', (error, stdout, stderr) => {
+                if (error) {
+                    console.log('Executable permission setting failed:', error.message);
+                }
+                resolve();
+            });
+        } else {
+            resolve();
+        }
+    });
+}
+
+async function setPermissions(appPath) {
+    return new Promise((resolve, reject) => {
+        exec('chmod -R 755 "' + appPath + '"', (error, stdout, stderr) => {
+            if (error) {
+                console.log('Permission setting failed:', error.message);
+            }
+            resolve();
+        });
+    });
+}
+
+async function cleanUserData(appPath) {
+    const userDataPaths = [
+        path.join(appPath, 'Contents', 'Library'),
+        path.join(appPath, 'Contents', 'Preferences'),
+        path.join(appPath, 'Contents', 'Cache'),
+        path.join(appPath, 'Contents', 'Application Support'),
+        path.join(appPath, 'Contents', 'Saved Games'),
+        path.join(appPath, 'Contents', 'UserData'),
+        path.join(appPath, 'Contents', 'Data'),
+        path.join(appPath, 'Contents', 'Documents'),
+        path.join(appPath, 'Contents', 'Downloads')
+    ];
+
+    for (const dataPath of userDataPaths) {
+        if (fs.existsSync(dataPath)) {
+            console.log(`[SID_INSTALL_X] Removing user data: ${dataPath}`);
+            await removeDirectory(dataPath);
+        }
+    }
+
+    const userFiles = [
+        'preferences.plist',
+        'settings.plist',
+        'config.plist',
+        'user.json',
+        'profile.json',
+        'save.dat',
+        'cache.dat'
+    ];
+
+    for (const file of userFiles) {
+        const filePath = path.join(appPath, 'Contents', file);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`[SID_INSTALL_X] Removed user file: ${filePath}`);
+        }
+    }
+}
+
+// Start server
+app.listen(PORT, () => {
+    console.log('');
+    console.log('╔══════════════════════════════════════════════════════════════╗');
+    console.log('║                    SID INSTALL X v1.0                         ║');
+    console.log('║                GAME INSTALLER SYSTEM                          ║');
+    console.log('╚══════════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`[SYSTEM] Server operational on http://localhost:${PORT}`);
+    console.log('[SYSTEM] Ready to deploy game packages');
+    console.log('');
+    console.log('╔══════════════════════════════════════════════════════════════╗');
+    console.log('║                      AVAILABLE PACKAGES                        ║');
+    console.log('╚══════════════════════════════════════════════════════════════╝');
+    
+    Object.keys(packages).forEach(packageId => {
+        const pkg = packages[packageId];
+        const sourceExists = fs.existsSync(pkg.sourcePath);
+        const installedExists = fs.existsSync(pkg.installPath);
+        
+        const status = installedExists ? '✅ DEPLOYED' : (sourceExists ? '⬜ READY' : '❌ MISSING');
+        console.log(`  ${status} ${pkg.name} (${pkg.size})`);
+    });
+    
+    console.log('');
+    console.log('[SYSTEM] Interface ready at: http://localhost:' + PORT);
+    console.log('[SYSTEM] Awaiting deployment commands...');
+});
+
+// Handle shutdown
+process.on('SIGINT', () => {
+    console.log('\n[SYSTEM] Shutting down SID_INSTALL_X...');
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log('\n[SYSTEM] Shutting down SID_INSTALL_X...');
+    process.exit(0);
+});
