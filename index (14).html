@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRACKMANIA NATIONS FOREVER — WebGL</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;user-select:none;}
+:root{
+  --blue:#00b4ff;--gold:#f4d03f;--red:#e63946;--green:#2ecc71;
+  --dark:#030810;--panel:#06101e;--border:#0e2040;--text:#c8d8f0;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--dark);}
+body{display:flex;flex-direction:column;font-family:'Rajdhani',sans-serif;color:var(--text);}
+
+/* ── HEADER ── */
+#header{
+  flex-shrink:0;height:52px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 24px;
+  background:linear-gradient(90deg,#040c1a,#071428,#040c1a);
+  border-bottom:2px solid var(--border);
+  position:relative;z-index:100;
+}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:4px;
+  color:#fff;text-shadow:0 0 30px rgba(0,180,255,.5);}
+.logo em{color:var(--blue);font-style:normal;}
+.header-right{display:flex;align-items:center;gap:16px;}
+.hdr-tag{font-size:10px;letter-spacing:2px;color:#1e4070;text-transform:uppercase;}
+#btn-ctrl{
+  padding:6px 16px;font-family:'Rajdhani',sans-serif;font-weight:700;
+  font-size:11px;letter-spacing:2px;border:1px solid var(--blue);
+  background:transparent;color:var(--blue);cursor:pointer;transition:.2s;
+  text-transform:uppercase;
+}
+#btn-ctrl:hover{background:var(--blue);color:#000;}
+#btn-ctrl.ok{border-color:var(--green);color:var(--green);}
+
+/* ── MAIN LAYOUT ── */
+#main{flex:1;display:flex;overflow:hidden;}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:280px;flex-shrink:0;background:var(--panel);
+  border-right:2px solid var(--border);display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.sidebar-header{
+  padding:16px 18px 12px;border-bottom:1px solid var(--border);
+  font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:3px;color:var(--blue);
+}
+#track-list{flex:1;overflow-y:auto;padding:8px;}
+#track-list::-webkit-scrollbar{width:3px;}
+#track-list::-webkit-scrollbar-thumb{background:var(--border);}
+
+.track-card{
+  padding:10px 12px;margin-bottom:4px;cursor:pointer;
+  border:1px solid transparent;border-radius:2px;
+  transition:.15s;position:relative;
+  background:rgba(0,0,0,.3);
+}
+.track-card:hover{border-color:var(--blue);background:rgba(0,30,60,.4);}
+.track-card.active{border-color:var(--blue);background:rgba(0,40,80,.5);}
+.track-card .tc-name{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:#fff;}
+.track-card .tc-author{font-size:10px;color:#2a5080;letter-spacing:1px;margin-top:1px;}
+.track-card .tc-medals{display:flex;gap:4px;margin-top:6px;}
+.medal-dot{width:8px;height:8px;border-radius:50%;}
+.medal-dot.g{background:var(--gold);} .medal-dot.s{background:#bdc3c7;}
+.medal-dot.b{background:#e67e22;} .medal-dot.none{background:#1a3050;}
+.track-card .tc-diff{
+  position:absolute;top:10px;right:10px;
+  font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:1px;
+  padding:2px 6px;
+}
+.diff-A{color:#2ecc71;border:1px solid #2ecc71;}
+.diff-B{color:var(--blue);border:1px solid var(--blue);}
+.diff-C{color:var(--gold);border:1px solid var(--gold);}
+.diff-D{color:var(--red);border:1px solid var(--red);}
+.diff-E{color:#9b59b6;border:1px solid #9b59b6;}
+
+/* ── CONTENT PANEL ── */
+#content{flex:1;position:relative;overflow:hidden;}
+
+/* Track preview / info panel */
+#track-info{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 40%, #061628 0%, #030810 70%);
+  z-index:2;transition:opacity .3s;
+}
+#track-info .ti-title{
+  font-family:'Bebas Neue',sans-serif;font-size:64px;letter-spacing:6px;
+  color:#fff;text-shadow:0 0 60px rgba(0,180,255,.3);margin-bottom:4px;
+}
+#track-info .ti-sub{
+  font-size:11px;letter-spacing:4px;color:#2a5080;text-transform:uppercase;margin-bottom:40px;
+}
+.ti-card{
+  border:1px solid var(--border);background:rgba(0,0,0,.5);
+  padding:24px 40px;width:480px;margin-bottom:32px;
+}
+.ti-card-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;
+  color:#fff;margin-bottom:2px;}
+.ti-card-author{font-size:11px;letter-spacing:2px;color:#2a5080;margin-bottom:16px;}
+.ti-medal-row{display:flex;gap:2px;margin-bottom:20px;}
+.ti-medal{padding:4px 14px;font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:1px;}
+.ti-medal.g{color:var(--gold);border:1px solid var(--gold);background:rgba(244,208,63,.08);}
+.ti-medal.s{color:#bdc3c7;border:1px solid #bdc3c7;background:rgba(189,195,199,.06);}
+.ti-medal.b{color:#e67e22;border:1px solid #e67e22;background:rgba(230,126,34,.06);}
+.ti-medal.a{color:var(--green);border:1px solid var(--green);background:rgba(46,204,113,.06);}
+.ti-desc{font-size:12px;color:#3a6080;line-height:1.7;margin-bottom:16px;}
+.ti-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.ti-tag{padding:2px 8px;font-size:10px;letter-spacing:1px;border:1px solid var(--border);color:#2a5080;}
+
+#btn-race{
+  padding:16px 72px;font-family:'Bebas Neue',sans-serif;font-size:26px;
+  letter-spacing:6px;background:var(--blue);color:#000;border:none;
+  cursor:pointer;
+  clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);
+  transition:.15s;box-shadow:0 0 50px rgba(0,180,255,.25);
+}
+#btn-race:hover{background:#fff;box-shadow:0 0 80px rgba(0,180,255,.5);}
+.race-hint{margin-top:14px;font-size:11px;letter-spacing:2px;color:#1e3a5a;}
+
+/* decorative corner lines */
+.corner-deco{position:absolute;width:30px;height:30px;opacity:.4;}
+.corner-deco.tl{top:20px;left:20px;border-top:2px solid var(--blue);border-left:2px solid var(--blue);}
+.corner-deco.tr{top:20px;right:20px;border-top:2px solid var(--blue);border-right:2px solid var(--blue);}
+.corner-deco.bl{bottom:20px;left:20px;border-bottom:2px solid var(--blue);border-left:2px solid var(--blue);}
+.corner-deco.br{bottom:20px;right:20px;border-bottom:2px solid var(--blue);border-right:2px solid var(--blue);}
+
+/* Preview canvas (3D thumbnail) */
+#preview-canvas{
+  position:absolute;inset:0;z-index:1;opacity:.15;pointer-events:none;
+}
+
+/* ── IN-GAME OVERLAY (hidden until race starts) ── */
+#game-frame{
+  position:absolute;inset:0;z-index:10;display:none;
+  flex-direction:column;
+}
+iframe#race-frame{flex:1;border:none;width:100%;height:100%;}
+
+/* ── BEST TIMES STRIP ── */
+#best-strip{
+  flex-shrink:0;height:36px;display:flex;align-items:center;
+  background:var(--panel);border-top:1px solid var(--border);
+  padding:0 16px;gap:24px;overflow:hidden;
+}
+.bs-item{display:flex;align-items:center;gap:8px;font-size:11px;}
+.bs-label{color:#1e4060;letter-spacing:1px;text-transform:uppercase;}
+.bs-val{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--blue);}
+.bs-medal{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:1px;padding:1px 5px;}
+
+/* scrolling news ticker */
+#ticker-wrap{flex:1;overflow:hidden;position:relative;}
+#ticker{
+  position:absolute;white-space:nowrap;font-size:11px;color:#1e4060;
+  letter-spacing:1px;animation:ticker 30s linear infinite;top:50%;transform:translateY(-50%);
+}
+@keyframes ticker{from{left:100%}to{left:-200%}}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo">TRACK<em>MANIA</em> <span style="font-size:16px;letter-spacing:2px;opacity:.5">NATIONS FOREVER</span></div>
+  <div class="header-right">
+    <span class="hdr-tag">Stadium · Career · A-E</span>
+    <button id="btn-ctrl">Connect Controller</button>
+  </div>
+</div>
+
+<div id="main">
+  <!-- Track list -->
+  <div id="sidebar">
+    <div class="sidebar-header">Campaign Tracks</div>
+    <div id="track-list"></div>
+  </div>
+
+  <!-- Info / preview -->
+  <div id="content">
+    <canvas id="preview-canvas"></canvas>
+    <div id="track-info">
+      <div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+      <div class="corner-deco bl"></div><div class="corner-deco br"></div>
+
+      <div class="ti-title" id="ti-title">STADIUM</div>
+      <div class="ti-sub">SELECT A TRACK TO BEGIN</div>
+
+      <div class="ti-card" id="ti-card" style="display:none">
+        <div class="ti-card-title" id="ti-name">—</div>
+        <div class="ti-card-author" id="ti-author">BY NADEO</div>
+        <div class="ti-medal-row">
+          <div class="ti-medal a" id="ti-med-a">AUTH —:—</div>
+          <div class="ti-medal g" id="ti-med-g">GOLD —:—</div>
+          <div class="ti-medal s" id="ti-med-s">SILV —:—</div>
+          <div class="ti-medal b" id="ti-med-b">BRNZ —:—</div>
+        </div>
+        <div class="ti-desc" id="ti-desc">—</div>
+        <div class="ti-tags" id="ti-tags"></div>
+      </div>
+
+      <button id="btn-race" style="display:none" onclick="launchRace()">START RACE</button>
+      <div class="race-hint" id="race-hint" style="display:none">PRESS ENTER TO START · W/A/S/D TO DRIVE · R TO RESPAWN</div>
+    </div>
+
+    <div id="game-frame">
+      <iframe id="race-frame" allowfullscreen></iframe>
+    </div>
+  </div>
+</div>
+
+<div id="best-strip">
+  <div class="bs-item">
+    <span class="bs-label">Best Times</span>
+  </div>
+  <div id="best-times-list" style="display:flex;gap:20px;align-items:center;"></div>
+  <div id="ticker-wrap">
+    <div id="ticker">
+      TRACKMANIA NATIONS FOREVER — STADIUM — A-01 THROUGH E-05 — BEAT ALL MEDAL TIMES — MASTER THE LOOP · THE BANK · THE CHICANE — GOOD LUCK DRIVER
+    </div>
+  </div>
+</div>
+
+<script>
+// ── TRACK CATALOGUE ──────────────────────────────────────────
+// All 25 classic TM Nations A-E tracks
+const TRACKS = [
+  // A SERIES
+  {id:'a01',name:'A-01',file:'track_a01.html',author:'Nadeo',diff:'A',
+   medals:{author:24500,gold:27000,silver:35000,bronze:50000},
+   desc:'The perfect introduction. A smooth flowing stadium circuit with one boost section and gentle banking.',
+   tags:['INTRO','BOOST','STADIUM']},
+  {id:'a02',name:'A-02',file:'track_a02.html',author:'Nadeo',diff:'A',
+   medals:{author:26000,gold:29000,silver:38000,bronze:55000},
+   desc:'Wide sweeping bends and a tight chicane section before the finish. Learn the car feel here.',
+   tags:['CHICANE','SWEEP','STADIUM']},
+  {id:'a03',name:'A-03',file:'track_a03.html',author:'Nadeo',diff:'A',
+   medals:{author:28500,gold:32000,silver:42000,bronze:60000},
+   desc:'Your first ramp jump. Hit it straight and stay committed for a clean landing.',
+   tags:['JUMP','RAMP','STADIUM']},
+  {id:'a04',name:'A-04',file:'track_a04.html',author:'Nadeo',diff:'A',
+   medals:{author:30000,gold:35000,silver:45000,bronze:65000},
+   desc:'Back-to-back boost pads through a long straight. Speed management matters here.',
+   tags:['SPEED','BOOST','STRAIGHT']},
+  {id:'a05',name:'A-05',file:'track_a05.html',author:'Nadeo',diff:'A',
+   medals:{author:22000,gold:25000,silver:33000,bronze:48000},
+   desc:'Short and technical. Nailing the two hairpins back-to-back is the key to gold.',
+   tags:['HAIRPIN','TECHNICAL','SHORT']},
+
+  // B SERIES
+  {id:'b01',name:'B-01',file:'track_b01.html',author:'Nadeo',diff:'B',
+   medals:{author:35000,gold:40000,silver:52000,bronze:75000},
+   desc:'Introduces the banked turn. Ride the wall — that\'s how the pros do it.',
+   tags:['BANKING','LOOPS','STADIUM']},
+  {id:'b02',name:'B-02',file:'track_b02.html',author:'Nadeo',diff:'B',
+   medals:{author:38000,gold:43000,silver:56000,bronze:80000},
+   desc:'A technical island circuit with three checkpoints and a tricky downhill S-bend.',
+   tags:['S-BEND','DOWNHILL','ISLAND']},
+  {id:'b03',name:'B-03',file:'track_b03.html',author:'Nadeo',diff:'B',
+   medals:{author:42000,gold:48000,silver:62000,bronze:88000},
+   desc:'Your first 360° loop. Carry speed into it — don\'t brake before the loop entrance.',
+   tags:['LOOP','360°','ICONIC']},
+  {id:'b04',name:'B-04',file:'track_b04.html',author:'Nadeo',diff:'B',
+   medals:{author:36000,gold:41000,silver:53000,bronze:76000},
+   desc:'Combines boost pads with tight stadium corners. Great for learning boost optimization.',
+   tags:['BOOST','CORNERS','COMBINED']},
+  {id:'b05',name:'B-05',file:'track_b05.html',author:'Nadeo',diff:'B',
+   medals:{author:44000,gold:50000,silver:65000,bronze:92000},
+   desc:'The elevated highway. A section of the track runs 8 meters above ground.',
+   tags:['ELEVATED','PLATFORM','TECHNICAL']},
+
+  // C SERIES
+  {id:'c01',name:'C-01',file:'track_c01.html',author:'Nadeo',diff:'C',
+   medals:{author:48000,gold:56000,silver:72000,bronze:100000},
+   desc:'Stadium mixed with dirt sections. Grip changes completely — adapt your inputs.',
+   tags:['DIRT','MIXED','GRIP']},
+  {id:'c02',name:'C-02',file:'track_c02.html',author:'Nadeo',diff:'C',
+   medals:{author:52000,gold:60000,silver:78000,bronze:108000},
+   desc:'Multiple loops and a huge gap jump. Align early for the jump approach.',
+   tags:['MULTI-LOOP','GAP JUMP','EXTREME']},
+  {id:'c03',name:'C-03',file:'track_c03.html',author:'Nadeo',diff:'C',
+   medals:{author:55000,gold:64000,silver:82000,bronze:115000},
+   desc:'Reverse start direction. One of only three tracks in Nations where you begin backwards.',
+   tags:['REVERSE','COMPLEX','LONG']},
+  {id:'c04',name:'C-04',file:'track_c04.html',author:'Nadeo',diff:'C',
+   medals:{author:50000,gold:58000,silver:75000,bronze:104000},
+   desc:'The staircase. A series of offset platforms requiring perfect jump timing to cross.',
+   tags:['STAIRCASE','PLATFORM','PRECISION']},
+  {id:'c05',name:'C-05',file:'track_c05.html',author:'Nadeo',diff:'C',
+   medals:{author:58000,gold:68000,silver:88000,bronze:122000},
+   desc:'Longest C-track. Full stadium lap with every block type: loop, bank, boost and dirt.',
+   tags:['LONG','ALL TYPES','STADIUM']},
+
+  // D SERIES
+  {id:'d01',name:'D-01',file:'track_d01.html',author:'Nadeo',diff:'D',
+   medals:{author:62000,gold:72000,silver:95000,bronze:132000},
+   desc:'Expert-grade banked loops over open air. One mistake and you fall off.',
+   tags:['AERIAL','BANKING','EXPERT']},
+  {id:'d02',name:'D-02',file:'track_d02.html',author:'Nadeo',diff:'D',
+   medals:{author:68000,gold:79000,silver:102000,bronze:142000},
+   desc:'Tight technical interior circuit inside the stadium roof structure.',
+   tags:['INTERIOR','TIGHT','ROOF']},
+  {id:'d03',name:'D-03',file:'track_d03.html',author:'Nadeo',diff:'D',
+   medals:{author:72000,gold:84000,silver:108000,bronze:150000},
+   desc:'The spiral descent. A corkscrew section that drops 30 meters while turning.',
+   tags:['SPIRAL','CORKSCREW','DESCENT']},
+  {id:'d04',name:'D-04',file:'track_d04.html',author:'Nadeo',diff:'D',
+   medals:{author:65000,gold:76000,silver:98000,bronze:136000},
+   desc:'Super-speed boost chain followed by a 180° turnaround at the wall. Commit or crash.',
+   tags:['MAX SPEED','TURNAROUND','INTENSE']},
+  {id:'d05',name:'D-05',file:'track_d05.html',author:'Nadeo',diff:'D',
+   medals:{author:78000,gold:91000,silver:118000,bronze:162000},
+   desc:'The cathedral. Grand sweeping architecture with a hidden shortcut on the left.',
+   tags:['GRAND','SHORTCUT','ARCHITECTURE']},
+
+  // E SERIES
+  {id:'e01',name:'E-01',file:'track_e01.html',author:'Nadeo',diff:'E',
+   medals:{author:85000,gold:99000,silver:128000,bronze:175000},
+   desc:'Master level. A relentless assault of every track element at maximum speed.',
+   tags:['MASTER','EXTREME','ALL ELEMENTS']},
+  {id:'e02',name:'E-02',file:'track_e02.html',author:'Nadeo',diff:'E',
+   medals:{author:92000,gold:107000,silver:138000,bronze:188000},
+   desc:'The wall ride. Two sections require driving completely perpendicular to the ground.',
+   tags:['WALL RIDE','EXTREME','ICONIC']},
+  {id:'e03',name:'E-03',file:'track_e03.html',author:'Nadeo',diff:'E',
+   medals:{author:88000,gold:103000,silver:133000,bronze:181000},
+   desc:'Longest track in Nations. A full 90-second author run — gold is nearly impossible.',
+   tags:['LONGEST','EPIC','90 SEC']},
+  {id:'e04',name:'E-04',file:'track_e04.html',author:'Nadeo',diff:'E',
+   medals:{author:95000,gold:111000,silver:144000,bronze:196000},
+   desc:'Ultra-precision platform jumping above a 50m drop. No barriers. No mercy.',
+   tags:['NO BARRIERS','PLATFORM','ULTIMATE']},
+  {id:'e05',name:'E-05',file:'track_e05.html',author:'Nadeo',diff:'E',
+   medals:{author:101000,gold:118000,silver:152000,bronze:208000},
+   desc:'The final track. Everything. The signature Nations track seen in all promotional material.',
+   tags:['FINALE','SIGNATURE','COMPLETE']},
+];
+
+let selectedTrack = TRACKS[0];
+let bestTimes = {};
+
+// ── BUILD TRACK LIST ──────────────────────────────────────────
+function buildList(){
+  const container = document.getElementById('track-list');
+  let lastDiff = '';
+  TRACKS.forEach((t,i)=>{
+    if(t.diff !== lastDiff){
+      const sep=document.createElement('div');
+      sep.style.cssText='font-family:Bebas Neue,sans-serif;font-size:11px;letter-spacing:3px;color:#0e2040;padding:12px 4px 4px;border-top:'+(i>0?'1px solid #0a1830':'none');
+      sep.textContent='— '+t.diff+' SERIES —';
+      container.appendChild(sep);
+      lastDiff=t.diff;
+    }
+    const card=document.createElement('div');
+    card.className='track-card'+(i===0?' active':'');
+    card.id='tc-'+t.id;
+    card.innerHTML=`
+      <div class="tc-name">${t.name}</div>
+      <div class="tc-author">BY ${t.author.toUpperCase()}</div>
+      <div class="tc-medals">
+        <div class="medal-dot none" id="dot-a-${t.id}"></div>
+        <div class="medal-dot none" id="dot-g-${t.id}"></div>
+        <div class="medal-dot none" id="dot-s-${t.id}"></div>
+        <div class="medal-dot none" id="dot-b-${t.id}"></div>
+      </div>
+      <div class="tc-diff diff-${t.diff}">${t.diff}</div>
+    `;
+    card.addEventListener('click',()=>selectTrack(t));
+    container.appendChild(card);
+  });
+}
+
+function selectTrack(t){
+  selectedTrack=t;
+  document.querySelectorAll('.track-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tc-'+t.id)?.classList.add('active');
+
+  document.getElementById('ti-title').textContent=t.name;
+  document.getElementById('ti-name').textContent=t.name;
+  document.getElementById('ti-author').textContent='BY '+t.author.toUpperCase();
+  document.getElementById('ti-med-a').textContent='AUTH '+fmtMs(t.medals.author);
+  document.getElementById('ti-med-g').textContent='GOLD '+fmtMs(t.medals.gold);
+  document.getElementById('ti-med-s').textContent='SILV '+fmtMs(t.medals.silver);
+  document.getElementById('ti-med-b').textContent='BRNZ '+fmtMs(t.medals.bronze);
+  document.getElementById('ti-desc').textContent=t.desc;
+
+  const tagBox=document.getElementById('ti-tags');
+  tagBox.innerHTML=t.tags.map(tg=>`<div class="ti-tag">${tg}</div>`).join('');
+
+  document.getElementById('ti-card').style.display='';
+  document.getElementById('btn-race').style.display='';
+  document.getElementById('race-hint').style.display='';
+  document.getElementById('ti-sub').style.display='none';
+
+  // Draw mini preview
+  drawPreview(t);
+}
+
+function fmtMs(ms){
+  const s=ms/1000, m=Math.floor(s/60);
+  return m+':'+(s%60).toFixed(2).padStart(5,'0');
+}
+
+function launchRace(){
+  const t=selectedTrack;
+  const frame=document.getElementById('game-frame');
+  const iframe=document.getElementById('race-frame');
+  frame.style.display='flex';
+  iframe.src=t.file+'?track='+t.id;
+  // Listen for finish message from iframe
+  window.onmessage=(e)=>{
+    if(e.data&&e.data.type==='tm_finish'){
+      onRaceFinish(t, e.data.ms, e.data.medal, e.data.medalColor);
+    }
+    if(e.data&&e.data.type==='tm_back'){
+      frame.style.display='none';
+      iframe.src='';
+    }
+  };
+}
+
+function onRaceFinish(track, ms, medal, mCol){
+  if(!bestTimes[track.id]||ms<bestTimes[track.id]) bestTimes[track.id]=ms;
+  updateBestTimesStrip();
+  // Update medal dots
+  const m=track.medals;
+  const dotA=document.getElementById('dot-a-'+track.id);
+  const dotG=document.getElementById('dot-g-'+track.id);
+  const dotS=document.getElementById('dot-s-'+track.id);
+  const dotB=document.getElementById('dot-b-'+track.id);
+  if(ms<=m.author && dotA) dotA.className='medal-dot g';
+  else if(ms<=m.gold && dotG) dotG.className='medal-dot g';
+  else if(ms<=m.silver && dotS) dotS.className='medal-dot s';
+  else if(ms<=m.bronze && dotB) dotB.className='medal-dot b';
+}
+
+function updateBestTimesStrip(){
+  const container=document.getElementById('best-times-list');
+  container.innerHTML='';
+  Object.entries(bestTimes).slice(-5).forEach(([id,ms])=>{
+    const t=TRACKS.find(t=>t.id===id);
+    if(!t) return;
+    const m=t.medals;
+    let mClass='none',mLabel='';
+    if(ms<=m.author){mClass='g';mLabel='AUTH';}
+    else if(ms<=m.gold){mClass='g';mLabel='GOLD';}
+    else if(ms<=m.silver){mClass='s';mLabel='SILV';}
+    else if(ms<=m.bronze){mClass='b';mLabel='BRNZ';}
+    const el=document.createElement('div');
+    el.className='bs-item';
+    el.innerHTML=`<span class="bs-label">${t.name}</span><span class="bs-val">${fmtMs(ms)}</span><span class="bs-medal" style="color:${mClass==='g'?'#f4d03f':mClass==='s'?'#bdc3c7':'#e67e22'}">${mLabel}</span>`;
+    container.appendChild(el);
+  });
+}
+
+// ── PREVIEW CANVAS ─────────────────────────────────────────────
+function drawPreview(track){
+  const c=document.getElementById('preview-canvas');
+  c.width=c.clientWidth; c.height=c.clientHeight;
+  const ctx=c.getContext('2d');
+  if(!ctx) return;
+  ctx.clearRect(0,0,c.width,c.height);
+  // Draw abstract track layout based on difficulty
+  const cx=c.width/2, cy=c.height/2;
+  const R=Math.min(cx,cy)*0.6;
+  const diff={'A':0,'B':1,'C':2,'D':3,'E':4}[track.diff]||0;
+  const complexity=3+diff*2;
+  ctx.strokeStyle='rgba(0,180,255,0.6)';
+  ctx.lineWidth=3;
+  ctx.shadowColor='rgba(0,180,255,0.8)';
+  ctx.shadowBlur=12;
+  ctx.beginPath();
+  for(let i=0;i<=200;i++){
+    const t=i/200*Math.PI*2;
+    const r=R*(0.5+0.5*Math.sin(t*complexity+diff));
+    const x=cx+r*Math.cos(t+diff*0.3);
+    const y=cy+r*Math.sin(t*1.3+diff*0.2);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();ctx.stroke();
+  // boost pads
+  ctx.fillStyle='rgba(0,255,120,0.5)';
+  for(let i=0;i<3+diff;i++){
+    const t=(i/(3+diff))*Math.PI*2+0.3;
+    const r=R*(0.5+0.5*Math.sin(t*complexity+diff));
+    const x=cx+r*Math.cos(t+diff*0.3);
+    const y=cy+r*Math.sin(t*1.3+diff*0.2);
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();
+  }
+}
+
+// ── KEYBOARD SHORTCUT ─────────────────────────────────────────
+window.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('game-frame').style.display==='none') launchRace();
+  if(e.key==='Escape'&&document.getElementById('game-frame').style.display!=='none'){
+    document.getElementById('game-frame').style.display='none';
+    document.getElementById('race-frame').src='';
+  }
+});
+
+// ── SERIAL CONTROLLER ─────────────────────────────────────────
+document.getElementById('btn-ctrl').addEventListener('click',async()=>{
+  try{
+    const port=await navigator.serial.requestPort();
+    await port.open({baudRate:115200});
+    document.getElementById('btn-ctrl').textContent='CONNECTED';
+    document.getElementById('btn-ctrl').classList.add('ok');
+  }catch(e){}
+});
+
+// ── INIT ──────────────────────────────────────────────────────
+buildList();
+selectTrack(TRACKS[0]);
+</script>
+</body>
+</html>
